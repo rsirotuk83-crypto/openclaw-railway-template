@@ -12,8 +12,7 @@ RUN apt-get update \
     zip \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g openclaw@2026.4.21 clawhub@latest
-
+RUN npm install -g openclaw@2026.4.21 clawhub@latest grammy
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
