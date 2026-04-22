@@ -11,19 +11,13 @@ RUN apt-get update \
     zip \
   && rm -rf /var/lib/apt/lists/*
 
-# Встановлюємо openclaw як root і одразу фіксуємо права
 RUN npm install -g openclaw@2026.4.21 clawhub@latest
 
-# Встановлюємо залежності telegram плагіну поки ще root
+# Встановлюємо deps плагінів поки root з правильними правами
 RUN cd /usr/local/lib/node_modules/openclaw/dist/extensions/telegram \
+    && npm install --no-save 2>/dev/null || true \
+    && cd /usr/local/lib/node_modules/openclaw/dist/extensions/microsoft \
     && npm install --no-save 2>/dev/null || true
-
-# Встановлюємо залежності microsoft плагіну
-RUN cd /usr/local/lib/node_modules/openclaw/dist/extensions/microsoft \
-    && npm install --no-save 2>/dev/null || true
-
-# Фіксуємо всі права
-RUN chmod -R 777 /usr/local/lib/node_modules/openclaw/dist/extensions/
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
@@ -33,7 +27,8 @@ COPY --chmod=755 entrypoint.sh ./entrypoint.sh
 RUN useradd -m -s /bin/bash openclaw \
   && chown -R openclaw:openclaw /app \
   && mkdir -p /data && chown openclaw:openclaw /data \
-  && mkdir -p /home/linuxbrew/.linuxbrew && chown -R openclaw:openclaw /home/linuxbrew
+  && mkdir -p /home/linuxbrew/.linuxbrew \
+  && chown -R openclaw:openclaw /home/linuxbrew
 USER openclaw
 RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
