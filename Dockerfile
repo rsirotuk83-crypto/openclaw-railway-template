@@ -1,5 +1,4 @@
 FROM node:22-bookworm
-
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -12,34 +11,39 @@ RUN apt-get update \
     zip \
   && rm -rf /var/lib/apt/lists/*
 
+# Встановлюємо openclaw як root і одразу фіксуємо права
 RUN npm install -g openclaw@2026.4.21 clawhub@latest
-WORKDIR /app
 
+# Встановлюємо залежності telegram плагіну поки ще root
+RUN cd /usr/local/lib/node_modules/openclaw/dist/extensions/telegram \
+    && npm install --no-save 2>/dev/null || true
+
+# Встановлюємо залежності microsoft плагіну
+RUN cd /usr/local/lib/node_modules/openclaw/dist/extensions/microsoft \
+    && npm install --no-save 2>/dev/null || true
+
+# Фіксуємо всі права
+RUN chmod -R 777 /usr/local/lib/node_modules/openclaw/dist/extensions/
+
+WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile --prod
-
 COPY src ./src
 COPY --chmod=755 entrypoint.sh ./entrypoint.sh
-
 RUN useradd -m -s /bin/bash openclaw \
   && chown -R openclaw:openclaw /app \
   && mkdir -p /data && chown openclaw:openclaw /data \
   && mkdir -p /home/linuxbrew/.linuxbrew && chown -R openclaw:openclaw /home/linuxbrew
-
 USER openclaw
 RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
 ENV HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
 ENV HOMEBREW_CELLAR="/home/linuxbrew/.linuxbrew/Cellar"
 ENV HOMEBREW_REPOSITORY="/home/linuxbrew/.linuxbrew/Homebrew"
-
 ENV PORT=8080
 ENV OPENCLAW_ENTRY=/usr/local/lib/node_modules/openclaw/dist/entry.js
 EXPOSE 8080
-
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD curl -f http://localhost:8080/setup/healthz || exit 1
-
 USER root
 ENTRYPOINT ["./entrypoint.sh"]
